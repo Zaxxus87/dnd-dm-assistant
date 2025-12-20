@@ -77,7 +77,7 @@ encounter balancing, and campaign management. Be concise but helpful."""
         config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.95,
-            max_output_tokens=2048
+            max_output_tokens=4096
         )
         
         # Generate response
@@ -134,7 +134,7 @@ stat block (simplified), and a quest they might offer. Format as structured text
         config = types.GenerateContentConfig(
             temperature=1.0,
             top_p=0.95,
-            max_output_tokens=2048
+            max_output_tokens=4096
         )
         
         response = genai_client.models.generate_content(

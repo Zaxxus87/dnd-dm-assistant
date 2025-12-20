@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D DM Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎲 D&D Dungeon Master Assistant</h1>
+            <p>Powered by Vertex AI Gemini</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('chat')">DM Chat</button>
+            <button class="tab-button" onclick="showTab('npc')">NPC Generator</button>
+            <button class="tab-button" onclick="showTab('lore')">Campaign Lore</button>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="chat-tab" class="tab-content active">
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages"></div>
+                <div class="chat-input-container">
+                    <select id="context-type" class="context-select">
+                        <option value="general">General</option>
+                        <option value="combat">Combat</option>
+                        <option value="npc">NPC</option>
+                        <option value="lore">Lore</option>
+                        <option value="rules">Rules</option>
+                    </select>
+                    <input type="text" id="chat-input" placeholder="Ask your DM Assistant..." />
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NPC Generator Tab -->
+        <div id="npc-tab" class="tab-content">
+            <div class="npc-generator">
+                <h2>Generate NPC</h2>
+                <div class="form-group">
+                    <label>Race:</label>
+                    <input type="text" id="npc-race" placeholder="e.g., elf, dwarf, human, random" value="random" />
+                </div>
+                <div class="form-group">
+                    <label>Class:</label>
+                    <input type="text" id="npc-class" placeholder="e.g., wizard, rogue, fighter, random" value="random" />
+                </div>
+                <div class="form-group">
+                    <label>Alignment:</label>
+                    <input type="text" id="npc-alignment" placeholder="e.g., chaotic-good, lawful-neutral, random" value="random" />
+                </div>
+                <button onclick="generateNPC()" class="generate-btn">Generate NPC</button>
+                <div id="npc-result" class="result-box"></div>
+            </div>
+        </div>
+
+        <!-- Campaign Lore Tab -->
+        <div id="lore-tab" class="tab-content">
+            <div class="lore-manager">
+                <h2>Campaign Lore</h2>
+                <div class="form-group">
+                    <label>Title:</label>
+                    <input type="text" id="lore-title" placeholder="Lore entry title" />
+                </div>
+                <div class="form-group">
+                    <label>Category:</label>
+                    <select id="lore-category">
+                        <option value="general">General</option>
+                        <option value="location">Location</option>
+                        <option value="npc">NPC</option>
+                        <option value="quest">Quest</option>
+                        <option value="history">History</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Content:</label>
+                    <textarea id="lore-content" rows="6" placeholder="Enter your campaign lore..."></textarea>
+                </div>
+                <button onclick="addLore()" class="generate-btn">Add Lore Entry</button>
+                <button onclick="loadLore()" class="load-btn">Load All Lore</button>
+                <div id="lore-list" class="lore-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
