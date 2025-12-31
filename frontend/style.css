@@ -263,3 +263,127 @@ button:active {
     border-radius: 8px;
     margin-top: 15px;
 }
+
+/* Rulebook Search Styles */
+.rulebook-search {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 0.95em;
+}
+
+.search-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+#rulebook-query {
+    flex: 1;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.search-btn, .ask-btn {
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.search-btn {
+    background: #667eea;
+    color: white;
+}
+
+.search-btn:hover {
+    background: #5568d3;
+}
+
+.ask-btn {
+    background: #764ba2;
+    color: white;
+}
+
+.ask-btn:hover {
+    background: #653a8b;
+}
+
+.rulebook-results {
+    margin-top: 20px;
+}
+
+.search-result {
+    background: #f9f9f9;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    border-left: 4px solid #667eea;
+}
+
+.search-result .source-info {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.search-result .source-info .source {
+    background: #667eea;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+}
+
+.search-result .source-info .page {
+    color: #666;
+}
+
+.search-result .text {
+    line-height: 1.8;
+    color: #333;
+}
+
+.ai-answer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    line-height: 1.8;
+}
+
+.ai-answer h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+}
+
+.similarity-badge {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #667eea;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    margin-left: 10px;
+}

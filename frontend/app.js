@@ -171,3 +171,113 @@ async function loadLore() {
         loreList.innerHTML = `<div class="error">❌ Error loading lore: ${error.message}</div>`;
     }
 }
+
+// Rulebook Search Functions
+async function searchRulebooks() {
+    const query = document.getElementById('rulebook-query').value.trim();
+    const resultsDiv = document.getElementById('rulebook-results');
+    
+    if (!query) {
+        alert('Please enter a search query');
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<div class="loading">🔍 Searching rulebooks...</div>';
+    
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/search-rulebooks?query=${encodeURIComponent(query)}&n_results=5`,
+            { method: 'POST' }
+        );
+        
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            let html = `<h3>Found ${data.count} results for "${data.query}"</h3>`;
+            
+            data.results.forEach((result, index) => {
+                const similarity = (result.similarity * 100).toFixed(1);
+                html += `
+                    <div class="search-result">
+                        <div class="source-info">
+                            <span class="source">${result.source}</span>
+                            <span class="page">Page ${result.page_number}</span>
+                            <span class="similarity-badge">${similarity}% match</span>
+                        </div>
+                        <div class="text">${result.text}</div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = '<div class="no-results">No results found. Try different keywords.</div>';
+        }
+        
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+    }
+}
+
+async function askRulebook() {
+    const query = document.getElementById('rulebook-query').value.trim();
+    const resultsDiv = document.getElementById('rulebook-results');
+    
+    if (!query) {
+        alert('Please enter a question');
+        return;
+    }
+    
+    resultsDiv.innerHTML = '<div class="loading">🤖 AI is analyzing rulebooks...</div>';
+    
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/chat-with-rulebooks?message=${encodeURIComponent(query)}`,
+            { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+        
+        const data = await response.json();
+        
+        let html = `
+            <div class="ai-answer">
+                <h3>🤖 AI Answer:</h3>
+                <div>${data.response.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+        
+        if (data.sources && data.sources.length > 0) {
+            html += `<h3>📚 Sources Referenced:</h3>`;
+            data.sources.forEach(source => {
+                html += `
+                    <div class="search-result">
+                        <div class="source-info">
+                            <span class="source">${source.source}</span>
+                            <span class="page">Page ${source.page_number}</span>
+                        </div>
+                        <div class="text">${source.text}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        resultsDiv.innerHTML = html;
+        
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+    }
+}
+
+// Allow Enter key for rulebook search
+document.addEventListener('DOMContentLoaded', () => {
+    const rulebookQuery = document.getElementById('rulebook-query');
+    if (rulebookQuery) {
+        rulebookQuery.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchRulebooks();
+            }
+        });
+    }
+});

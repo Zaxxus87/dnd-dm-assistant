@@ -10,11 +10,12 @@
     <div class="container">
         <header>
             <h1>🎲 D&D Dungeon Master Assistant</h1>
-            <p>Powered by Vertex AI Gemini</p>
+            <p>Powered by Vertex AI Gemini + RAG Rulebook Search</p>
         </header>
 
         <div class="tabs">
             <button class="tab-button active" onclick="showTab('chat')">DM Chat</button>
+            <button class="tab-button" onclick="showTab('rulebooks')">Rulebook Search</button>
             <button class="tab-button" onclick="showTab('npc')">NPC Generator</button>
             <button class="tab-button" onclick="showTab('lore')">Campaign Lore</button>
         </div>
@@ -34,6 +35,22 @@
                     <input type="text" id="chat-input" placeholder="Ask your DM Assistant..." />
                     <button onclick="sendMessage()">Send</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Rulebook Search Tab -->
+        <div id="rulebooks-tab" class="tab-content">
+            <div class="rulebook-search">
+                <h2>Search D&D Rulebooks</h2>
+                <p class="subtitle">Search through your Player's Handbook, Dungeon Master's Guide, and Monster Manual</p>
+                
+                <div class="search-container">
+                    <input type="text" id="rulebook-query" placeholder="e.g., grappling rules, fireball spell, concentration..." />
+                    <button onclick="searchRulebooks()" class="search-btn">Search</button>
+                    <button onclick="askRulebook()" class="ask-btn">Ask AI</button>
+                </div>
+
+                <div id="rulebook-results" class="rulebook-results"></div>
             </div>
         </div>
 

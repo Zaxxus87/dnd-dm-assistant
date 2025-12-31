@@ -209,3 +209,79 @@ async def add_campaign_lore(title: str, content: str, category: str = "general")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+# RAG Rulebook Search
+from app.rag.pdf_processor import PDFProcessor
+
+# Initialize RAG processor (add after other initializations)
+try:
+    rag_processor = PDFProcessor(PROJECT_ID)
+except Exception as e:
+    print(f"Warning: RAG processor initialization failed: {e}")
+    rag_processor = None
+
+@app.post("/search-rulebooks")
+async def search_rulebooks(query: str, n_results: int = 5):
+    """Search D&D rulebooks using RAG"""
+    try:
+        if not rag_processor:
+            raise HTTPException(status_code=503, detail="Rulebook search not available")
+        
+        results = rag_processor.search(query, n_results=n_results)
+        
+        return {
+            "query": query,
+            "results": results,
+            "count": len(results)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat-with-rulebooks")
+async def chat_with_rulebooks(message: str, context_type: str = "rules"):
+    """Chat with rulebook context"""
+    try:
+        if not rag_processor:
+            raise HTTPException(status_code=503, detail="Rulebook search not available")
+        
+        # Search rulebooks for relevant context
+        rulebook_results = rag_processor.search(message, n_results=3)
+        
+        # Build prompt with rulebook context
+        context_text = "\n\n".join([
+            f"[{r['source']}, Page {r['page_number']}]: {r['text']}" 
+            for r in rulebook_results
+        ])
+        
+        system_prompt = f"""You are a D&D 5e rules expert. Use the following rulebook excerpts to answer the question accurately.
+
+Rulebook Context:
+{context_text}
+
+Question: {message}
+
+Provide a clear answer based on the rulebook information. Cite the source and page number."""
+
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=system_prompt)])]
+        
+        config = types.GenerateContentConfig(
+            temperature=0.3,
+            top_p=0.95,
+            max_output_tokens=2048
+        )
+        
+        response = genai_client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents,
+            config=config
+        )
+        
+        return {
+            "response": response.text,
+            "sources": rulebook_results,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
