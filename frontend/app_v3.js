@@ -492,3 +492,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============== MAP GENERATOR ==============
+
+async function generateMap() {
+    const description = document.getElementById('map-description').value.trim();
+    const size = document.getElementById('map-size').value;
+    const style = document.getElementById('map-style').value;
+    const grid = document.getElementById('map-grid').checked;
+    const resultDiv = document.getElementById('map-result');
+    
+    if (!description) {
+        alert('Please describe the map you want to generate');
+        return;
+    }
+    
+    // Show loading animation
+    resultDiv.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">🗺️ Generating your battle map...</p>
+            <p class="loading-subtext">This may take 30-60 seconds...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/generate-map?description=${encodeURIComponent(description)}&size=${size}&style=${encodeURIComponent(style)}&grid=${grid}`,
+            { method: 'POST' }
+        );
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="map-display">
+                    <h3>✨ Generated Battle Map</h3>
+                    <div class="map-image-container">
+                        <img src="data:image/png;base64,${data.image_base64}" alt="Generated Map" class="generated-map" />
+                    </div>
+                    <div class="map-actions">
+                        <a href="${data.image_url}" download="battle_map.png" class="download-btn">📥 Download PNG</a>
+                        <button onclick="copyMapUrl('${data.image_url}')" class="copy-btn">📋 Copy URL</button>
+                    </div>
+                    <p class="map-info">Size: ${data.dimensions} | <a href="${data.image_url}" target="_blank">Open in new tab</a></p>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `<div class="error">❌ Error: ${data.error || 'Failed to generate map'}</div>`;
+        }
+        
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+    }
+}
+
+function copyMapUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        alert('✅ Map URL copied to clipboard!');
+    }).catch(err => {
+        alert('Failed to copy URL');
+    });
+}

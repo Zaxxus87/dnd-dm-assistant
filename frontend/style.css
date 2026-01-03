@@ -521,3 +521,118 @@ button:active {
 .doc-link:hover {
     text-decoration: underline;
 }
+
+/* Map Generator Styles */
+.map-generator {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.map-generator textarea {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    resize: vertical;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-group.half {
+    flex: 1;
+}
+
+.checkbox-group {
+    margin: 15px 0;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+}
+
+.map-result {
+    margin-top: 30px;
+}
+
+.map-display {
+    background: #f9f9f9;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+}
+
+.map-display h3 {
+    margin-top: 0;
+    color: #667eea;
+}
+
+.map-image-container {
+    margin: 20px 0;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.generated-map {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.map-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.download-btn, .copy-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+}
+
+.download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.copy-btn {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.copy-btn:hover {
+    background: #e0e0e0;
+}
+
+.map-info {
+    color: #666;
+    font-size: 14px;
+}
+
+.map-info a {
+    color: #667eea;
+}

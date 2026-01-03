@@ -485,3 +485,90 @@ Use this EXACT format. Do not add extra headers or sections."""
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== MAP GENERATOR ==============
+
+@app.post("/generate-map")
+async def generate_map(
+    description: str,
+    size: str = "medium",
+    style: str = "realistic top-down battle map",
+    grid: bool = True
+):
+    """Generate a battle map using Vertex AI Imagen"""
+    try:
+        from vertexai.preview.vision_models import ImageGenerationModel
+        
+        # Size mappings (pixels)
+        size_map = {
+            "small": (1024, 1024),
+            "medium": (1536, 1536),
+            "large": (2048, 2048)
+        }
+        
+        width, height = size_map.get(size, (1536, 1536))
+        
+        # Build the prompt for battle map generation
+        grid_text = "with a visible 5-foot square grid overlay" if grid else "without grid lines"
+        
+        prompt = f"""Top-down fantasy battle map for D&D tabletop RPG, {style}, {grid_text}.
+        
+Scene description: {description}
+
+Style requirements:
+- Bird's eye view / top-down perspective
+- Clear terrain and features visible from above
+- Suitable for virtual tabletop (VTT) use
+- High detail, clean edges
+- Fantasy RPG aesthetic"""
+
+        # Generate image using Imagen
+        model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
+        
+        response = model.generate_images(
+            prompt=prompt,
+            number_of_images=1,
+            aspect_ratio="1:1",
+            safety_filter_level="block_few",
+            person_generation="dont_allow"
+        )
+        
+        if response.images:
+            # Get the generated image
+            generated_image = response.images[0]
+            
+            # Convert to base64 for frontend
+            import base64
+            image_bytes = generated_image._image_bytes
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # Save to Cloud Storage for persistence
+            from google.cloud import storage
+            storage_client = storage.Client()
+            bucket = storage_client.bucket("dnd-dm-assistant-web")
+            
+            # Generate unique filename
+            import uuid
+            filename = f"maps/map_{uuid.uuid4().hex[:8]}.png"
+            blob = bucket.blob(filename)
+            blob.upload_from_string(image_bytes, content_type="image/png")
+            
+            # Make publicly accessible
+            # Bucket is already public, no need for make_public()
+            public_url = f"https://storage.googleapis.com/dnd-dm-assistant-web/{filename}"
+            
+            return {
+                "success": True,
+                "image_base64": base64_image,
+                "image_url": public_url,
+                "prompt_used": prompt,
+                "size": size,
+                "dimensions": f"{width}x{height}"
+            }
+        else:
+            return {"success": False, "error": "No image generated"}
+            
+    except Exception as e:
+        print(f"Map generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
