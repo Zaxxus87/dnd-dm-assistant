@@ -285,3 +285,203 @@ Provide a clear answer based on the rulebook information. Cite the source and pa
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Import Google Drive service
+from app.services.google_drive_service import GoogleDriveService
+from app.utils.npc_parser import parse_npc_text
+
+# Initialize Google Drive service (add after other initializations)
+try:
+    drive_service = GoogleDriveService(PROJECT_ID)
+except Exception as e:
+    print(f"Warning: Google Drive service initialization failed: {e}")
+    drive_service = None
+
+@app.post("/generate-npc-to-drive")
+async def generate_npc_to_drive(
+    race: str = "random",
+    character_class: str = "random",
+    alignment: str = "random"
+):
+    """Generate an NPC and save it to Google Drive"""
+    try:
+        if not drive_service:
+            raise HTTPException(status_code=503, detail="Google Drive service not available")
+        
+        # Template and folder IDs
+        TEMPLATE_ID = "1mxeHjGBSAHXAWbj_hmSZr4ACiJBAszkExB9cIv37s2s"
+        FOLDER_ID = "1s9uJh8y864acY1yAv20ughDqwztq6ao3"
+        
+        # Generate NPC with structured output
+        prompt = f"""Generate a detailed D&D 5e NPC with these parameters:
+Race: {race}
+Class: {character_class}
+Alignment: {alignment}
+
+Format EXACTLY like this:
+
+NPC Name: [Full name]
+Race: [Specific race]
+Class: [Class and subclass]
+Alignment: [Alignment]
+Level: [Level number]
+World Placement: [2-3 sentences about location and role]
+
+Physical Description: [2-3 sentences describing appearance]
+
+Voice Suggestions: [How they speak]
+
+Personality Traits:
+*   **[Trait 1]:** [Description]
+*   **[Trait 2]:** [Description]
+
+Background: [2-3 paragraphs about history]
+
+Str: [8-18]
+Dex: [8-18]
+Con: [8-18]
+Int: [8-18]
+Wis: [8-18]
+Cha: [8-18]
+
+Saving Throws: [Proficiencies with modifiers]
+Skills: [Proficiencies with modifiers]
+Senses: [Passive Perception and special senses]
+Languages: [Languages known]
+
+Abilities:
+*   **[Ability 1]:** [Description]
+*   **[Ability 2]:** [Description]
+
+Actions:
+*   **[Action 1]:** [Attack with bonus and damage]
+
+Use this EXACT format."""
+
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
+        
+        config = types.GenerateContentConfig(
+            temperature=1.0,
+            top_p=0.95,
+            max_output_tokens=4096
+        )
+        
+        response = genai_client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents,
+            config=config
+        )
+        
+        npc_text = response.text
+        
+        # Parse the generated NPC data
+        npc_data = parse_npc_text(npc_text)
+        
+        # Create document title
+        npc_name = npc_data.get('name', 'Unnamed NPC')
+        doc_title = f"{npc_name} - NPC"
+        
+        # Copy template
+        new_doc_id = drive_service.copy_template(TEMPLATE_ID, doc_title, FOLDER_ID)
+        
+        if not new_doc_id:
+            raise HTTPException(status_code=500, detail="Failed to create document")
+        
+        # Fill template
+        success = drive_service.fill_npc_template(new_doc_id, npc_data)
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to fill template")
+        
+        # Get document URL
+        doc_url = drive_service.get_document_url(new_doc_id)
+        
+        # Store in Firestore
+        npc_ref = db.collection('npcs').document()
+        npc_ref.set({
+            'name': npc_name,
+            'race': race,
+            'class': character_class,
+            'alignment': alignment,
+            'google_doc_id': new_doc_id,
+            'google_doc_url': doc_url,
+            'created_at': datetime.utcnow()
+        })
+        
+        return {
+            "npc_name": npc_name,
+            "google_doc_url": doc_url,
+            "firestore_id": npc_ref.id,
+            "message": "NPC created successfully in Google Drive!"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.post("/test-npc-generation")
+async def test_npc_generation(race: str = "elf", character_class: str = "wizard"):
+    """Test NPC generation and return raw output"""
+    try:
+        prompt = f"""Generate a detailed D&D 5e NPC with the following parameters:
+Race: {race}
+Class: {character_class}
+
+Format your response EXACTLY like this example:
+
+NPC Name: Elara Meadowbrook
+Race: High Elf
+Class: Wizard (School of Abjuration)
+Alignment: Neutral Good
+Level: 5
+World Placement: Elara serves as the principal archivist and magical consultant within the Grand Library of Silverhaven.
+
+Physical Description: Elara possesses the characteristic slender grace of a high elf, standing at 5'6" with an elegant posture.
+
+Voice Suggestions: Her voice is soft, melodic, and precise.
+
+Personality Traits:
+*   **Intellectually Curious:** Driven by an insatiable thirst for knowledge.
+*   **Methodical and Prudent:** Approaches problems with careful consideration.
+
+Background: Elara was raised in a reclusive elven conclave known for its ancient magical libraries.
+
+Str: 8
+Dex: 16
+Con: 13
+Int: 16
+Wis: 12
+Cha: 10
+
+Saving Throws: Intelligence (+6), Wisdom (+3)
+Skills: Arcana (+6), History (+6)
+Senses: Passive Perception 13, Darkvision 60 ft.
+Languages: Common, Elvish, Draconic
+
+Abilities:
+*   **Fey Ancestry:** Elara has advantage on saving throws.
+
+Actions:
+*   **Dagger:** Melee Weapon Attack: +5 to hit.
+
+Use this EXACT format. Do not add extra headers or sections."""
+
+        contents = [types.Content(role="user", parts=[types.Part.from_text(text=prompt)])]
+        
+        config = types.GenerateContentConfig(
+            temperature=1.0,
+            top_p=0.95,
+            max_output_tokens=4096
+        )
+        
+        response = genai_client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents,
+            config=config
+        )
+        
+        return {"raw_output": response.text}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -387,3 +387,137 @@ button:active {
     font-size: 0.75em;
     margin-left: 10px;
 }
+
+/* Google Drive Button */
+.drive-btn {
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    color: white;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.drive-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+#npc-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 2px solid #ddd;
+}
+
+/* Loading Animations */
+.loading-container {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #667eea;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+.loading-spinner-small {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #4285f4;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #667eea;
+    margin: 10px 0;
+}
+
+.loading-subtext {
+    color: #999;
+    font-style: italic;
+}
+
+/* NPC Display */
+.npc-display {
+    background: #f9f9f9;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 20px 0;
+}
+
+.npc-display h3 {
+    margin-top: 0;
+    color: #667eea;
+    font-size: 1.5em;
+}
+
+.npc-content {
+    line-height: 1.8;
+    color: #333;
+}
+
+.npc-content strong {
+    color: #764ba2;
+}
+
+/* Save Status */
+.saving-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    background: #e3f2fd;
+    border-radius: 8px;
+    color: #1976d2;
+    font-weight: 600;
+}
+
+.success-message {
+    margin-top: 15px;
+    padding: 15px;
+    background: #e8f5e9;
+    border-radius: 8px;
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.error-message {
+    margin-top: 15px;
+    padding: 15px;
+    background: #ffebee;
+    border-radius: 8px;
+    color: #c62828;
+    font-weight: 600;
+}
+
+.doc-link {
+    color: #1976d2;
+    text-decoration: none;
+    font-weight: 700;
+    margin-left: 10px;
+}
+
+.doc-link:hover {
+    text-decoration: underline;
+}

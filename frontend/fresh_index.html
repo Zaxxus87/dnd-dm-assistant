@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D DM Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎲 D&D Dungeon Master Assistant</h1>
+            <p>Powered by Vertex AI Gemini + RAG Rulebook Search</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('chat')">DM Chat</button>
+            <button class="tab-button" onclick="showTab('rulebooks')">Rulebook Search</button>
+            <button class="tab-button" onclick="showTab('npc')">NPC Generator</button>
+            <button class="tab-button" onclick="showTab('lore')">Campaign Lore</button>
+        </div>
+
+        <!-- NPC Generator Tab -->
+        <div id="npc-tab" class="tab-content">
+            <div class="npc-generator">
+                <h2>Generate NPC</h2>
+                <div class="form-group">
+                    <label>Race:</label>
+                    <input type="text" id="npc-race" placeholder="e.g., elf, dwarf, human, random" value="random" />
+                </div>
+                <div class="form-group">
+                    <label>Class:</label>
+                    <input type="text" id="npc-class" placeholder="e.g., wizard, rogue, fighter, random" value="random" />
+                </div>
+                <div class="form-group">
+                    <label>Alignment:</label>
+                    <input type="text" id="npc-alignment" placeholder="e.g., chaotic-good, lawful-neutral, random" value="random" />
+                </div>
+                <button onclick="generateNPC()" class="generate-btn">Generate NPC</button>
+                
+                <div id="npc-result" class="result-box"></div>
+                
+                <div id="npc-actions" style="display:none; margin-top: 20px;">
+                    <button onclick="saveNPCToGoogleDrive()" class="drive-btn">💾 Save to Google Drive</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other tabs omitted for brevity - they'll stay hidden -->
+    </div>
+
+    <script src="app_v3.js"></script>
+</body>
+</html>
