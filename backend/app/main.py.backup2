@@ -489,30 +489,31 @@ Use this EXACT format. Do not add extra headers or sections."""
 
 # ============== MAP GENERATOR ==============
 
+
 @app.post("/generate-map")
 async def generate_map(
     description: str,
-    size: str = "medium",
+    rows: int = 20,
+    columns: int = 20,
     style: str = "realistic top-down battle map",
-    grid: bool = True
+    show_grid: bool = True
 ):
-    """Generate a battle map using Vertex AI Imagen"""
+    """Generate a battle map using Vertex AI Imagen with optional grid overlay"""
     try:
         from vertexai.preview.vision_models import ImageGenerationModel
+        from PIL import Image
+        import io
+        import base64
+        import uuid
+        from google.cloud import storage
         
-        # Size mappings (pixels)
-        size_map = {
-            "small": (1024, 1024),
-            "medium": (1536, 1536),
-            "large": (2048, 2048)
-        }
+        # Calculate image size based on grid (70 pixels per square - VTT standard)
+        PIXELS_PER_SQUARE = 70
+        width = columns * PIXELS_PER_SQUARE
+        height = rows * PIXELS_PER_SQUARE
         
-        width, height = size_map.get(size, (1536, 1536))
-        
-        # Build the prompt for battle map generation
-        grid_text = "with a visible 5-foot square grid overlay" if grid else "without grid lines"
-        
-        prompt = f"""Top-down fantasy battle map for D&D tabletop RPG, {style}, {grid_text}.
+        # Imagen generates fixed sizes, so we'll generate and resize
+        prompt = f"""Top-down fantasy battle map for D&D tabletop RPG, {style}, seamless texture, no grid lines, no axis lines, no borders.
         
 Scene description: {description}
 
@@ -521,7 +522,9 @@ Style requirements:
 - Clear terrain and features visible from above
 - Suitable for virtual tabletop (VTT) use
 - High detail, clean edges
-- Fantasy RPG aesthetic"""
+- Fantasy RPG aesthetic
+- NO grid lines, squares, axis lines, rulers, coordinate markers, or borders in the image
+- Pure terrain and features only"""
 
         # Generate image using Imagen
         model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
@@ -537,25 +540,45 @@ Style requirements:
         if response.images:
             # Get the generated image
             generated_image = response.images[0]
+            image_bytes = generated_image._image_bytes
+            
+            # Open with PIL for processing
+            img = Image.open(io.BytesIO(image_bytes))
+            
+            # Resize to match grid dimensions
+            img = img.resize((width, height), Image.LANCZOS)
+            
+            # Draw grid if requested
+            if show_grid:
+                from PIL import ImageDraw
+                draw = ImageDraw.Draw(img)
+                
+                # Draw vertical lines
+                for x in range(0, width + 1, PIXELS_PER_SQUARE):
+                    draw.line([(x, 0), (x, height)], fill=(0, 0, 0, 128), width=1)
+                
+                # Draw horizontal lines
+                for y in range(0, height + 1, PIXELS_PER_SQUARE):
+                    draw.line([(0, y), (width, y)], fill=(0, 0, 0, 128), width=1)
+            
+            # Convert back to bytes
+            output_buffer = io.BytesIO()
+            img.save(output_buffer, format='PNG')
+            final_image_bytes = output_buffer.getvalue()
             
             # Convert to base64 for frontend
-            import base64
-            image_bytes = generated_image._image_bytes
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            base64_image = base64.b64encode(final_image_bytes).decode('utf-8')
             
             # Save to Cloud Storage for persistence
-            from google.cloud import storage
             storage_client = storage.Client()
             bucket = storage_client.bucket("dnd-dm-assistant-web")
             
             # Generate unique filename
-            import uuid
             filename = f"maps/map_{uuid.uuid4().hex[:8]}.png"
             blob = bucket.blob(filename)
-            blob.upload_from_string(image_bytes, content_type="image/png")
+            blob.upload_from_string(final_image_bytes, content_type="image/png")
             
-            # Make publicly accessible
-            # Bucket is already public, no need for make_public()
+            # Bucket is already public
             public_url = f"https://storage.googleapis.com/dnd-dm-assistant-web/{filename}"
             
             return {
@@ -563,8 +586,9 @@ Style requirements:
                 "image_base64": base64_image,
                 "image_url": public_url,
                 "prompt_used": prompt,
-                "size": size,
-                "dimensions": f"{width}x{height}"
+                "grid_size": f"{columns}x{rows}",
+                "dimensions": f"{width}x{height}",
+                "pixels_per_square": PIXELS_PER_SQUARE
             }
         else:
             return {"success": False, "error": "No image generated"}

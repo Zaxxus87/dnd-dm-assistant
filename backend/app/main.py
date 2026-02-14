@@ -163,6 +163,325 @@ stat block (simplified), and a quest they might offer. Format as structured text
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/generate-npc-enhanced")
+async def generate_npc_enhanced(
+    race: str = "random",
+    character_class: str = "random",
+    alignment: str = "random",
+    level: int = None,
+    cr: str = None,
+    npc_type: str = "character",  # "character" or "creature"
+    role: str = "neutral",  # ally, enemy, quest_giver, merchant, neutral
+    location_id: str = None,
+    faction_id: str = None
+):
+    """
+    Generate a detailed NPC with RAG-enhanced 2024 rules accuracy
+    and links to Campaign Lore
+    """
+    try:
+        # Fetch location from Campaign Lore if provided
+        location_info = ""
+        if location_id:
+            try:
+                loc_doc = db.collection('campaign_lore').document(location_id).get()
+                if loc_doc.exists:
+                    loc_data = loc_doc.to_dict()
+                    location_info = f"\nLocation: {loc_data.get('title', 'Unknown')}\nLocation Details: {loc_data.get('content', '')}"
+            except:
+                pass
+        
+        # Fetch faction from Campaign Lore if provided
+        faction_info = ""
+        if faction_id:
+            try:
+                fac_doc = db.collection('campaign_lore').document(faction_id).get()
+                if fac_doc.exists:
+                    fac_data = fac_doc.to_dict()
+                    faction_info = f"\nFaction: {fac_data.get('title', 'Unknown')}\nFaction Details: {fac_data.get('content', '')}"
+            except:
+                pass
+        
+        
+        # Different RAG searches based on NPC type
+        creature_stats = ""
+        race_rules = ""
+        class_rules = ""
+        
+        role_descriptions = {
+            "ally": "This creature is a potential ally who can help the party.",
+            "enemy": "This creature is an antagonist or enemy with clear motivations for opposing the party.",
+            "quest_giver": "This creature offers quests and missions.",
+            "merchant": "This creature is a merchant or trader.",
+            "neutral": "This creature has its own agenda that may or may not align with the party."
+        }
+        role_context = role_descriptions.get(role, role_descriptions["neutral"])
+        
+        if npc_type == "creature":
+            # For creatures, search Monster Manual for stat blocks
+            if race != "random" and rag_processor:
+                try:
+                    creature_results = rag_processor.search(f"{race} monster stat block", n_results=3)
+                    if creature_results:
+                        creature_stats = "\n\nMonster Manual Reference:\n"
+                        for r in creature_results:
+                            creature_stats += f"- {r.get('text', '')[:800]}...\n"
+                except:
+                    pass
+            
+            if cr and rag_processor:
+                try:
+                    cr_results = rag_processor.search(f"CR {cr} monster abilities actions", n_results=2)
+                    if cr_results:
+                        creature_stats += "\n\nSimilar CR Creatures:\n"
+                        for r in cr_results:
+                            creature_stats += f"- {r.get('text', '')[:500]}...\n"
+                except:
+                    pass
+            
+            level_cr_text = f"Challenge Rating (CR): {cr if cr else 'appropriate for the creature'}"
+            
+            prompt = f"""Generate a detailed D&D 5e CREATURE/MONSTER based on Monster Manual format.
+
+**Basic Information:**
+- Creature Type: {race}
+- Category: {character_class if character_class else 'N/A'}
+- Alignment: {alignment}
+- {level_cr_text}
+- Role: {role.replace('_', ' ').title()}
+
+**Role Context:** {role_context}
+{location_info}
+{faction_info}
+{creature_stats}
+
+**Generate a MONSTER STAT BLOCK in official D&D 5e Monster Manual format:**
+
+1. **Creature Name**
+
+2. **Size, Type, Alignment** (e.g., Medium undead, neutral evil)
+
+3. **Armor Class** (with armor type)
+
+4. **Hit Points** (with hit dice, e.g., 45 (6d10 + 12))
+
+5. **Speed** (walk, fly, swim, burrow, climb)
+
+6. **Ability Scores Table:**
+   STR | DEX | CON | INT | WIS | CHA
+   (scores with modifiers)
+
+7. **Saving Throws** (if proficient)
+
+8. **Skills** (if proficient)
+
+9. **Damage Resistances/Immunities**
+
+10. **Condition Immunities**
+
+11. **Senses** (darkvision, passive Perception, etc.)
+
+12. **Languages**
+
+13. **Challenge** (CR with XP)
+
+14. **Traits** (special abilities like Pack Tactics, Keen Senses)
+
+15. **Actions** (attacks with to-hit bonus and damage)
+
+16. **Reactions** (if any)
+
+17. **Legendary Actions** (if CR 10+)
+
+18. **Description** (appearance, behavior, habitat)
+
+19. **Tactics** (how it fights)
+
+20. **Plot Hooks** (ways to use in adventures)
+
+Format as an official Monster Manual stat block."""
+
+        else:
+            # For characters, search PHB for race and class info
+            if race != "random" and rag_processor:
+                try:
+                    race_results = rag_processor.search(f"{race} race traits features 2024", n_results=2)
+                    if race_results:
+                        race_rules = "\n\nRelevant Race Rules from 2024 PHB:\n"
+                        for r in race_results:
+                            race_rules += f"- {r.get('text', '')[:500]}...\n"
+                except:
+                    pass
+            
+            if character_class != "random" and rag_processor:
+                try:
+                    level_text = f"level {level}" if level else ""
+                    class_results = rag_processor.search(f"{character_class} class features {level_text} 2024", n_results=2)
+                    if class_results:
+                        class_rules = "\n\nRelevant Class Rules from 2024 PHB:\n"
+                        for r in class_results:
+                            class_rules += f"- {r.get('text', '')[:500]}...\n"
+                except:
+                    pass
+            
+            level_cr_text = f"Level: {level if level else 'appropriate for the class'}"
+            
+            prompt = f"""Generate a detailed D&D 5e NPC using the 2024 rules with the following specifications:
+
+**Basic Information:**
+- Race: {race}
+- Class: {character_class}
+- Alignment: {alignment}
+- {level_cr_text}
+- Type: {npc_type.title()}
+- Role: {role.replace('_', ' ').title()}
+
+**Role Context:** {role_context}
+{location_info}
+{faction_info}
+{race_rules}
+{class_rules}
+
+**Please generate the NPC with these sections:**
+
+1. **NPC Name:** (creative fantasy name appropriate for the race)
+2. **Race:** (include any relevant racial traits from 2024 rules)
+3. **Class:** (with subclass if appropriate)
+4. **Alignment:** 
+5. **Level/CR:** 
+6. **Role:** {role.replace('_', ' ').title()}
+7. **Location:** (where they can be found)
+8. **Faction Affiliation:** (if any)
+9. **Physical Description:** (detailed appearance, distinguishing features)
+10. **Voice Suggestions:** (accent, speech patterns, mannerisms)
+11. **Personality Traits:** (3-4 distinct traits)
+12. **Background:** (history, motivations, goals)
+13. **Stat Block (Simplified):**
+    - STR, DEX, CON, INT, WIS, CHA scores
+    - Armor Class, Hit Points
+    - Key skills and saving throws
+14. **Abilities & Features:** (class features, racial traits from 2024 PHB)
+15. **Actions:** (attacks, spells, or special actions)
+16. **Roleplaying Tips:** (how to portray this NPC)
+17. **Plot Hooks:** (2-3 ways to involve this NPC in adventures)
+
+Format the response with clear headers and organized sections."""
+
+
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=prompt)]
+            )
+        ]
+        
+        config = types.GenerateContentConfig(
+            temperature=0.9,
+            top_p=0.95,
+            max_output_tokens=8192
+        )
+        
+        response = genai_client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents,
+            config=config
+        )
+        
+        response_text = response.text
+        
+        # Store NPC in Firestore with all metadata
+        npc_ref = db.collection('npcs').document()
+        npc_data = {
+            'content': response_text,
+            'race': race,
+            'class': character_class,
+            'alignment': alignment,
+            'level': level,
+            'cr': cr,
+            'npc_type': npc_type,
+            'role': role,
+            'location_id': location_id,
+            'faction_id': faction_id,
+            'created_at': datetime.utcnow()
+        }
+        npc_ref.set(npc_data)
+        
+        return {
+            "npc": response_text,
+            "id": npc_ref.id,
+            "metadata": {
+                "race": race,
+                "class": character_class,
+                "alignment": alignment,
+                "level": level,
+                "cr": cr,
+                "npc_type": npc_type,
+                "role": role,
+                "location_id": location_id,
+                "faction_id": faction_id
+            }
+        }
+        
+    except Exception as e:
+        print(f"NPC Generation Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/npcs")
+async def get_all_npcs():
+    """Get all saved NPCs"""
+    try:
+        npcs_ref = db.collection('npcs')
+        docs = npcs_ref.order_by('created_at', direction=firestore.Query.DESCENDING).stream()
+        
+        npcs = []
+        for doc in docs:
+            npc = doc.to_dict()
+            npc['id'] = doc.id
+            npcs.append(npc)
+        
+        return {"npcs": npcs, "count": len(npcs)}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/npcs/{npc_id}")
+async def get_npc(npc_id: str):
+    """Get a single NPC by ID"""
+    try:
+        npc_ref = db.collection('npcs').document(npc_id)
+        doc = npc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="NPC not found")
+        
+        npc = doc.to_dict()
+        npc['id'] = doc.id
+        return npc
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/npcs/{npc_id}")
+async def delete_npc(npc_id: str):
+    """Delete an NPC"""
+    try:
+        npc_ref = db.collection('npcs').document(npc_id)
+        doc = npc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="NPC not found")
+        
+        npc_ref.delete()
+        return {"message": "NPC deleted successfully", "id": npc_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/campaign/lore")
 async def get_campaign_lore():
     """
@@ -203,6 +522,128 @@ async def add_campaign_lore(title: str, content: str, category: str = "general")
             "id": lore_ref.id
         }
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/campaign/lore/{lore_id}")
+async def update_campaign_lore(lore_id: str, title: str = None, content: str = None, category: str = None):
+    """
+    Update an existing campaign lore entry
+    """
+    try:
+        lore_ref = db.collection('campaign_lore').document(lore_id)
+        doc = lore_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Lore entry not found")
+        
+        update_data = {'updated_at': datetime.utcnow()}
+        if title is not None:
+            update_data['title'] = title
+        if content is not None:
+            update_data['content'] = content
+        if category is not None:
+            update_data['category'] = category
+        
+        lore_ref.update(update_data)
+        
+        return {"message": "Lore entry updated successfully", "id": lore_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/campaign/lore/{lore_id}")
+async def delete_campaign_lore(lore_id: str):
+    """
+    Delete a campaign lore entry
+    """
+    try:
+        lore_ref = db.collection('campaign_lore').document(lore_id)
+        doc = lore_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Lore entry not found")
+        
+        lore_ref.delete()
+        
+        return {"message": "Lore entry deleted successfully", "id": lore_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/campaign/lore/search")
+async def search_campaign_lore(query: str, category: str = None):
+    """
+    Search campaign lore entries by text or category
+    """
+    try:
+        lore_ref = db.collection('campaign_lore')
+        docs = lore_ref.stream()
+        
+        results = []
+        query_lower = query.lower()
+        
+        for doc in docs:
+            entry = doc.to_dict()
+            entry['id'] = doc.id
+            
+            # Filter by category if specified
+            if category and entry.get('category') != category:
+                continue
+            
+            # Search in title and content
+            if (query_lower in entry.get('title', '').lower() or 
+                query_lower in entry.get('content', '').lower()):
+                results.append(entry)
+        
+        return {"results": results, "count": len(results)}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/campaign/lore/categories")
+async def get_lore_categories():
+    """
+    Get all unique categories from campaign lore
+    """
+    try:
+        lore_ref = db.collection('campaign_lore')
+        docs = lore_ref.stream()
+        
+        categories = set()
+        for doc in docs:
+            entry = doc.to_dict()
+            if 'category' in entry:
+                categories.add(entry['category'])
+        
+        return {"categories": list(categories)}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/campaign/lore/{lore_id}")
+async def get_single_lore(lore_id: str):
+    """
+    Get a single campaign lore entry by ID
+    """
+    try:
+        lore_ref = db.collection('campaign_lore').document(lore_id)
+        doc = lore_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Lore entry not found")
+        
+        entry = doc.to_dict()
+        entry['id'] = doc.id
+        return entry
+        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -489,30 +930,31 @@ Use this EXACT format. Do not add extra headers or sections."""
 
 # ============== MAP GENERATOR ==============
 
+
 @app.post("/generate-map")
 async def generate_map(
     description: str,
-    size: str = "medium",
+    rows: int = 20,
+    columns: int = 20,
     style: str = "realistic top-down battle map",
-    grid: bool = True
+    show_grid: bool = True
 ):
-    """Generate a battle map using Vertex AI Imagen"""
+    """Generate a battle map using Vertex AI Imagen with optional grid overlay"""
     try:
         from vertexai.preview.vision_models import ImageGenerationModel
+        from PIL import Image
+        import io
+        import base64
+        import uuid
+        from google.cloud import storage
         
-        # Size mappings (pixels)
-        size_map = {
-            "small": (1024, 1024),
-            "medium": (1536, 1536),
-            "large": (2048, 2048)
-        }
+        # Calculate image size based on grid (70 pixels per square - VTT standard)
+        PIXELS_PER_SQUARE = 70
+        width = columns * PIXELS_PER_SQUARE
+        height = rows * PIXELS_PER_SQUARE
         
-        width, height = size_map.get(size, (1536, 1536))
-        
-        # Build the prompt for battle map generation
-        grid_text = "with a visible 5-foot square grid overlay" if grid else "without grid lines"
-        
-        prompt = f"""Top-down fantasy battle map for D&D tabletop RPG, {style}, {grid_text}.
+        # Imagen generates fixed sizes, so we'll generate and resize
+        prompt = f"""Top-down fantasy battle map for D&D tabletop RPG, {style}, seamless texture, no grid lines, no axis lines, no borders.
         
 Scene description: {description}
 
@@ -521,7 +963,9 @@ Style requirements:
 - Clear terrain and features visible from above
 - Suitable for virtual tabletop (VTT) use
 - High detail, clean edges
-- Fantasy RPG aesthetic"""
+- Fantasy RPG aesthetic
+- NO grid lines, squares, axis lines, rulers, coordinate markers, or borders in the image
+- Pure terrain and features only"""
 
         # Generate image using Imagen
         model = ImageGenerationModel.from_pretrained("imagen-3.0-generate-001")
@@ -537,25 +981,45 @@ Style requirements:
         if response.images:
             # Get the generated image
             generated_image = response.images[0]
+            image_bytes = generated_image._image_bytes
+            
+            # Open with PIL for processing
+            img = Image.open(io.BytesIO(image_bytes))
+            
+            # Resize to match grid dimensions
+            img = img.resize((width, height), Image.LANCZOS)
+            
+            # Draw grid if requested
+            if show_grid:
+                from PIL import ImageDraw
+                draw = ImageDraw.Draw(img)
+                
+                # Draw vertical lines
+                for x in range(0, width + 1, PIXELS_PER_SQUARE):
+                    draw.line([(x, 0), (x, height)], fill=(0, 0, 0, 128), width=1)
+                
+                # Draw horizontal lines
+                for y in range(0, height + 1, PIXELS_PER_SQUARE):
+                    draw.line([(0, y), (width, y)], fill=(0, 0, 0, 128), width=1)
+            
+            # Convert back to bytes
+            output_buffer = io.BytesIO()
+            img.save(output_buffer, format='PNG')
+            final_image_bytes = output_buffer.getvalue()
             
             # Convert to base64 for frontend
-            import base64
-            image_bytes = generated_image._image_bytes
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            base64_image = base64.b64encode(final_image_bytes).decode('utf-8')
             
             # Save to Cloud Storage for persistence
-            from google.cloud import storage
             storage_client = storage.Client()
             bucket = storage_client.bucket("dnd-dm-assistant-web")
             
             # Generate unique filename
-            import uuid
             filename = f"maps/map_{uuid.uuid4().hex[:8]}.png"
             blob = bucket.blob(filename)
-            blob.upload_from_string(image_bytes, content_type="image/png")
+            blob.upload_from_string(final_image_bytes, content_type="image/png")
             
-            # Make publicly accessible
-            # Bucket is already public, no need for make_public()
+            # Bucket is already public
             public_url = f"https://storage.googleapis.com/dnd-dm-assistant-web/{filename}"
             
             return {
@@ -563,8 +1027,9 @@ Style requirements:
                 "image_base64": base64_image,
                 "image_url": public_url,
                 "prompt_used": prompt,
-                "size": size,
-                "dimensions": f"{width}x{height}"
+                "grid_size": f"{columns}x{rows}",
+                "dimensions": f"{width}x{height}",
+                "pixels_per_square": PIXELS_PER_SQUARE
             }
         else:
             return {"success": False, "error": "No image generated"}

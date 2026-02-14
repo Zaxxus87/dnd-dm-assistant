@@ -59,25 +59,124 @@
         <!-- NPC Generator Tab -->
         <div id="npc-tab" class="tab-content">
             <div class="npc-generator">
-                <h2>Generate NPC</h2>
+                <h2>🎭 NPC Generator</h2>
+                <p class="subtitle">Generate detailed NPCs with 2024 rules accuracy</p>
+                
+                <!-- NPC Type Toggle -->
                 <div class="form-group">
-                    <label>Race:</label>
-                    <input type="text" id="npc-race" placeholder="e.g., elf, dwarf, human, random" value="random" />
+                    <label>NPC Type:</label>
+                    <div class="toggle-group">
+                        <button type="button" class="toggle-btn active" onclick="setNPCType('character')" id="type-character">Character</button>
+                        <button type="button" class="toggle-btn" onclick="setNPCType('creature')" id="type-creature">Creature</button>
+                    </div>
                 </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Race/Species:</label>
+                        <input type="text" id="npc-race" placeholder="e.g., elf, dwarf, goblin, random" value="random" />
+                    </div>
+                    <div class="form-group half">
+                        <label>Class (for characters):</label>
+                        <input type="text" id="npc-class" placeholder="e.g., wizard, rogue, fighter, random" value="random" />
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Alignment:</label>
+                        <select id="npc-alignment">
+                            <option value="random">Random</option>
+                            <option value="lawful good">Lawful Good</option>
+                            <option value="neutral good">Neutral Good</option>
+                            <option value="chaotic good">Chaotic Good</option>
+                            <option value="lawful neutral">Lawful Neutral</option>
+                            <option value="true neutral">True Neutral</option>
+                            <option value="chaotic neutral">Chaotic Neutral</option>
+                            <option value="lawful evil">Lawful Evil</option>
+                            <option value="neutral evil">Neutral Evil</option>
+                            <option value="chaotic evil">Chaotic Evil</option>
+                        </select>
+                    </div>
+                    <div class="form-group half" id="level-group">
+                        <label>Level:</label>
+                        <input type="number" id="npc-level" placeholder="1-20" min="1" max="20" value="5" />
+                    </div>
+                    <div class="form-group half" id="cr-group" style="display:none;">
+                        <label>Challenge Rating (CR):</label>
+                        <select id="npc-cr">
+                            <option value="0">0</option>
+                            <option value="1/8">1/8</option>
+                            <option value="1/4">1/4</option>
+                            <option value="1/2">1/2</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5" selected>5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                            <option value="13">13</option>
+                            <option value="14">14</option>
+                            <option value="15">15</option>
+                            <option value="16">16</option>
+                            <option value="17">17</option>
+                            <option value="18">18</option>
+                            <option value="19">19</option>
+                            <option value="20">20</option>
+                            <option value="21+">21+</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <div class="form-group">
-                    <label>Class:</label>
-                    <input type="text" id="npc-class" placeholder="e.g., wizard, rogue, fighter, random" value="random" />
+                    <label>Role:</label>
+                    <select id="npc-role">
+                        <option value="neutral">Neutral (Independent agenda)</option>
+                        <option value="ally">Ally (Helpful to party)</option>
+                        <option value="enemy">Enemy (Antagonist)</option>
+                        <option value="quest_giver">Quest Giver (Offers missions)</option>
+                        <option value="merchant">Merchant (Sells goods)</option>
+                    </select>
                 </div>
-                <div class="form-group">
-                    <label>Alignment:</label>
-                    <input type="text" id="npc-alignment" placeholder="e.g., chaotic-good, lawful-neutral, random" value="random" />
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Location (from Campaign Lore):</label>
+                        <select id="npc-location">
+                            <option value="">-- No specific location --</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Faction (from Campaign Lore):</label>
+                        <select id="npc-faction">
+                            <option value="">-- No faction --</option>
+                        </select>
+                    </div>
                 </div>
-                <button onclick="generateNPC()" class="generate-btn">Generate NPC</button>
+                
+                <div class="button-group">
+                    <button onclick="generateEnhancedNPC()" class="generate-btn">🎭 Generate NPC</button>
+                    <button onclick="loadNPCDropdowns()" class="refresh-btn">🔄 Refresh Lore Options</button>
+                </div>
                 
                 <div id="npc-result" class="result-box"></div>
                 
                 <div id="npc-actions" style="display:none; margin-top: 20px;">
+                    <button onclick="saveNPCToLore()" class="lore-btn">📜 Save to Campaign Lore</button>
                     <button onclick="saveNPCToGoogleDrive()" class="drive-btn">💾 Save to Google Drive</button>
+                </div>
+                
+                <!-- Saved NPCs Section -->
+                <div class="saved-npcs-section">
+                    <h3>📋 Saved NPCs</h3>
+                    <button onclick="loadSavedNPCs()" class="load-btn">Load Saved NPCs</button>
+                    <div id="saved-npcs-list" class="saved-npcs-list"></div>
                 </div>
             </div>
         </div>
@@ -90,34 +189,35 @@
                 
                 <div class="form-group">
                     <label>Describe your map:</label>
-                    <textarea id="map-description" rows="4" placeholder="e.g., A dark dungeon room with stone pillars, a treasure chest in the corner, and a pit trap in the center. Torches on the walls provide dim lighting."></textarea>
+                    <textarea id="map-description" rows="4" placeholder="e.g., A dark dungeon room with stone pillars, a treasure chest in the corner, and torches on the walls providing dim lighting."></textarea>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group half">
-                        <label>Size:</label>
-                        <select id="map-size">
-                            <option value="small">Small (1024x1024)</option>
-                            <option value="medium" selected>Medium (1536x1536)</option>
-                            <option value="large">Large (2048x2048)</option>
-                        </select>
+                        <label>Columns (width in squares):</label>
+                        <input type="number" id="map-columns" value="20" min="5" max="50" />
                     </div>
                     
                     <div class="form-group half">
-                        <label>Style:</label>
-                        <select id="map-style">
-                            <option value="realistic top-down battle map">Realistic</option>
-                            <option value="hand-drawn fantasy map style">Hand-drawn</option>
-                            <option value="painted fantasy art style">Painted</option>
-                            <option value="clean digital art style">Digital Clean</option>
-                        </select>
+                        <label>Rows (height in squares):</label>
+                        <input type="number" id="map-rows" value="20" min="5" max="50" />
                     </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Style:</label>
+                    <select id="map-style">
+                        <option value="realistic top-down battle map">Realistic</option>
+                        <option value="hand-drawn fantasy map style">Hand-drawn</option>
+                        <option value="painted fantasy art style">Painted</option>
+                        <option value="clean digital art style">Digital Clean</option>
+                    </select>
                 </div>
                 
                 <div class="form-group checkbox-group">
                     <label>
                         <input type="checkbox" id="map-grid" checked />
-                        Include 5ft grid overlay
+                        Show grid background (5ft squares)
                     </label>
                 </div>
                 
@@ -130,27 +230,59 @@
         <!-- Campaign Lore Tab -->
         <div id="lore-tab" class="tab-content">
             <div class="lore-manager">
-                <h2>Campaign Lore</h2>
-                <div class="form-group">
-                    <label>Title:</label>
-                    <input type="text" id="lore-title" placeholder="Lore entry title" />
+                <h2>📜 Campaign Lore</h2>
+                
+                <!-- Add/Edit Form -->
+                <div class="lore-form">
+                    <div class="form-group">
+                        <label>Title:</label>
+                        <input type="text" id="lore-title" placeholder="Lore entry title" />
+                    </div>
+                    <div class="form-group">
+                        <label>Category:</label>
+                        <select id="lore-category">
+                            <option value="general">General</option>
+                            <option value="location">Location</option>
+                            <option value="npc">NPC</option>
+                            <option value="quest">Quest</option>
+                            <option value="history">History</option>
+                            <option value="faction">Faction</option>
+                            <option value="item">Item</option>
+                            <option value="event">Event</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Content:</label>
+                        <textarea id="lore-content" rows="6" placeholder="Enter your campaign lore..."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="addLore()" class="generate-btn">Add Lore Entry</button>
+                        <button onclick="clearLoreForm()" class="cancel-btn">Clear Form</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Category:</label>
-                    <select id="lore-category">
-                        <option value="general">General</option>
-                        <option value="location">Location</option>
-                        <option value="npc">NPC</option>
-                        <option value="quest">Quest</option>
-                        <option value="history">History</option>
-                    </select>
+                
+                <!-- Search/Filter -->
+                <div class="lore-search-section">
+                    <h3>🔍 Search & Filter</h3>
+                    <div class="search-row">
+                        <input type="text" id="lore-search" placeholder="Search lore..." />
+                        <select id="lore-filter-category">
+                            <option value="">All Categories</option>
+                            <option value="general">General</option>
+                            <option value="location">Location</option>
+                            <option value="npc">NPC</option>
+                            <option value="quest">Quest</option>
+                            <option value="history">History</option>
+                            <option value="faction">Faction</option>
+                            <option value="item">Item</option>
+                            <option value="event">Event</option>
+                        </select>
+                        <button onclick="searchLore()" class="search-btn">Search</button>
+                        <button onclick="loadLore()" class="load-btn">Show All</button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Content:</label>
-                    <textarea id="lore-content" rows="6" placeholder="Enter your campaign lore..."></textarea>
-                </div>
-                <button onclick="addLore()" class="generate-btn">Add Lore Entry</button>
-                <button onclick="loadLore()" class="load-btn">Load All Lore</button>
+                
+                <!-- Lore List -->
                 <div id="lore-list" class="lore-list"></div>
             </div>
         </div>

@@ -4,7 +4,7 @@ const API_BASE_URL = 'https://dnd-dm-assistant-691169217190.us-central1.run.app'
 let currentNPC = null;
 
 // Google Drive API Configuration
-const CLIENT_ID = '691169217190-k8lv755nt497jqq9fgaq0mdr87r23uoa.apps.googleusercontent.com';
+const CLIENT_ID = '691169217190-k8iv755nt497jqq9fgaq0mdr87r23uoa.apps.googleusercontent.com';
 const API_KEY = 'AIzaSyAQ_q5OafH1Z-spa_fx37dZygppGjYFZAI';
 const TEMPLATE_ID = '1mxeHjGBSAHXAWbj_hmSZr4ACiJBAszkExB9cIv37s2s';
 const FOLDER_ID = '1s9uJh8y864acY1yAv20ughDqwztq6ao3';
@@ -23,36 +23,114 @@ function showTab(tabName) {
 }
 
 // NPC Generator Functions
-async function generateNPC() {
+
+// NPC Type state
+let currentNPCType = 'character';
+
+function setNPCType(type) {
+    currentNPCType = type;
+    
+    // Update toggle buttons
+    document.getElementById('type-character').classList.toggle('active', type === 'character');
+    document.getElementById('type-creature').classList.toggle('active', type === 'creature');
+    
+    // Show/hide level vs CR
+    document.getElementById('level-group').style.display = type === 'character' ? 'block' : 'none';
+    document.getElementById('cr-group').style.display = type === 'creature' ? 'block' : 'none';
+    
+    // Update class field label and placeholder
+    const classInput = document.getElementById('npc-class');
+    if (type === 'creature') {
+        classInput.placeholder = 'e.g., beast, undead, fiend, or leave empty';
+        classInput.value = '';
+    } else {
+        classInput.placeholder = 'e.g., wizard, rogue, fighter, random';
+        classInput.value = 'random';
+    }
+}
+
+async function loadNPCDropdowns() {
+    try {
+        // Load locations from Campaign Lore
+        const loreResponse = await fetch(`${API_BASE_URL}/campaign/lore`);
+        const loreData = await loreResponse.json();
+        
+        const locationSelect = document.getElementById('npc-location');
+        const factionSelect = document.getElementById('npc-faction');
+        
+        // Clear existing options (keep first "none" option)
+        locationSelect.innerHTML = '<option value="">-- No specific location --</option>';
+        factionSelect.innerHTML = '<option value="">-- No faction --</option>';
+        
+        if (loreData.lore) {
+            loreData.lore.forEach(entry => {
+                const option = document.createElement('option');
+                option.value = entry.id;
+                option.textContent = entry.title;
+                
+                if (entry.category === 'location') {
+                    locationSelect.appendChild(option);
+                } else if (entry.category === 'faction') {
+                    factionSelect.appendChild(option.cloneNode(true));
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error loading lore dropdowns:', error);
+    }
+}
+
+async function generateEnhancedNPC() {
     const race = document.getElementById('npc-race').value;
     const characterClass = document.getElementById('npc-class').value;
     const alignment = document.getElementById('npc-alignment').value;
+    const role = document.getElementById('npc-role').value;
+    const locationId = document.getElementById('npc-location').value;
+    const factionId = document.getElementById('npc-faction').value;
+    
+    let level = null;
+    let cr = null;
+    
+    if (currentNPCType === 'character') {
+        level = document.getElementById('npc-level').value;
+    } else {
+        cr = document.getElementById('npc-cr').value;
+    }
+    
     const resultDiv = document.getElementById('npc-result');
     const actionsDiv = document.getElementById('npc-actions');
     
     // Show animated loading
     resultDiv.className = 'result-box show';
-        resultDiv.innerHTML = `
+    resultDiv.innerHTML = `
         <div class="loading-container">
             <div class="loading-spinner"></div>
-            <p class="loading-text">🎲 Generating your NPC...</p>
-            <p class="loading-subtext">Consulting the ancient tomes...</p>
+            <p class="loading-text">🎭 Generating your NPC...</p>
+            <p class="loading-subtext">Consulting the 2024 rulebooks...</p>
         </div>
     `;
     actionsDiv.style.display = 'none';
     
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/generate-npc?race=${race}&character_class=${characterClass}&alignment=${alignment}`,
-            { method: 'POST' }
-        );
+        let url = `${API_BASE_URL}/generate-npc-enhanced?race=${encodeURIComponent(race)}&character_class=${encodeURIComponent(characterClass)}&alignment=${encodeURIComponent(alignment)}&npc_type=${currentNPCType}&role=${role}`;
         
+        if (level) url += `&level=${level}`;
+        if (cr) url += `&cr=${encodeURIComponent(cr)}`;
+        if (locationId) url += `&location_id=${locationId}`;
+        if (factionId) url += `&faction_id=${factionId}`;
+        
+        const response = await fetch(url, { method: 'POST' });
         const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
         currentNPC = {
+            id: data.id,
             text: data.npc,
-            race: race,
-            class: characterClass,
-            alignment: alignment
+            metadata: data.metadata
         };
         
         // Display the generated NPC with formatting
@@ -60,11 +138,17 @@ async function generateNPC() {
         resultDiv.innerHTML = `
             <div class="npc-display">
                 <h3>✨ Generated NPC</h3>
+                <div class="npc-metadata">
+                    <span class="badge badge-type">${currentNPCType}</span>
+                    <span class="badge badge-role">${role.replace('_', ' ')}</span>
+                    ${level ? `<span class="badge badge-level">Level ${level}</span>` : ''}
+                    ${cr ? `<span class="badge badge-cr">CR ${cr}</span>` : ''}
+                </div>
                 <div class="npc-content">${formatNPCText(data.npc)}</div>
             </div>
         `;
         
-        // Show the save button
+        // Show the save buttons
         actionsDiv.style.display = 'block';
         
     } catch (error) {
@@ -72,6 +156,132 @@ async function generateNPC() {
         resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
     }
 }
+
+// Keep old generateNPC for backward compatibility
+async function generateNPC() {
+    generateEnhancedNPC();
+}
+
+async function saveNPCToLore() {
+    if (!currentNPC || !currentNPC.text) {
+        alert('Please generate an NPC first!');
+        return;
+    }
+    
+    // Extract name from NPC text
+    const nameMatch = currentNPC.text.match(/\*\*(?:NPC )?Name:\*\*\s*(.+)/i) ||
+                      currentNPC.text.match(/# (.+)/);
+    const npcName = nameMatch ? nameMatch[1].trim() : 'Unnamed NPC';
+    
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/campaign/lore?title=${encodeURIComponent(npcName)}&content=${encodeURIComponent(currentNPC.text)}&category=npc`,
+            { method: 'POST' }
+        );
+        
+        const data = await response.json();
+        alert(`✅ NPC "${npcName}" saved to Campaign Lore!`);
+        
+    } catch (error) {
+        alert('❌ Error saving to lore: ' + error.message);
+    }
+}
+
+async function loadSavedNPCs() {
+    const listDiv = document.getElementById('saved-npcs-list');
+    listDiv.innerHTML = '<div class="loading">Loading saved NPCs...</div>';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/npcs`);
+        const data = await response.json();
+        
+        if (data.npcs && data.npcs.length > 0) {
+            let html = '';
+            data.npcs.forEach(npc => {
+                // Extract name from content
+                const nameMatch = npc.content && npc.content.match(/\*\*(?:NPC )?Name:\*\*\s*(.+)/i) ||
+                                  (npc.content && npc.content.match(/# (.+)/)) ||
+                                  [null, 'Unnamed NPC'];
+                const npcName = nameMatch[1] ? nameMatch[1].trim() : 'Unnamed NPC';
+                
+                const createdDate = npc.created_at?.seconds 
+                    ? new Date(npc.created_at.seconds * 1000).toLocaleDateString()
+                    : 'Unknown date';
+                
+                html += `
+                    <div class="saved-npc-card" data-id="${npc.id}">
+                        <div class="npc-card-header">
+                            <h4>${npcName}</h4>
+                            <div class="npc-card-actions">
+                                <button onclick="viewNPC('${npc.id}')" class="view-btn" title="View">👁️</button>
+                                <button onclick="deleteNPC('${npc.id}', '${npcName.replace(/'/g, "\\'")}')" class="delete-btn" title="Delete">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="npc-card-meta">
+                            <span class="badge">${npc.race || 'Unknown race'}</span>
+                            <span class="badge">${npc.class || 'Unknown class'}</span>
+                            <span class="badge">${npc.role || 'neutral'}</span>
+                        </div>
+                        <small class="npc-card-date">Created: ${createdDate}</small>
+                    </div>
+                `;
+            });
+            listDiv.innerHTML = html;
+        } else {
+            listDiv.innerHTML = '<div class="no-results">No saved NPCs found. Generate some NPCs above!</div>';
+        }
+        
+    } catch (error) {
+        listDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+    }
+}
+
+async function viewNPC(npcId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/npcs/${npcId}`);
+        const npc = await response.json();
+        
+        const resultDiv = document.getElementById('npc-result');
+        resultDiv.className = 'result-box show';
+        resultDiv.innerHTML = `
+            <div class="npc-display">
+                <h3>📋 Saved NPC</h3>
+                <div class="npc-content">${formatNPCText(npc.content)}</div>
+            </div>
+        `;
+        
+        // Scroll to result
+        resultDiv.scrollIntoView({ behavior: 'smooth' });
+        
+    } catch (error) {
+        alert('❌ Error loading NPC: ' + error.message);
+    }
+}
+
+async function deleteNPC(npcId, npcName) {
+    if (!confirm(`Are you sure you want to delete "${npcName}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/npcs/${npcId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        alert('✅ NPC deleted!');
+        loadSavedNPCs();
+        
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+// Load dropdowns when NPC tab is shown
+document.addEventListener('DOMContentLoaded', () => {
+    // Load NPC dropdowns after a short delay to ensure DOM is ready
+    setTimeout(loadNPCDropdowns, 1000);
+});
 
 function formatNPCText(text) {
     // Convert plain text to formatted HTML
@@ -106,7 +316,7 @@ async function initializeGapiClient() {
 function gisLoaded() {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/documents',
+        scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents',
         callback: '',
     });
     gisInited = true;
@@ -201,12 +411,12 @@ function parseNPCText(text) {
         voice_suggestions: /Voice Suggestions:\s*(.+?)(?=\n\n|\nPersonality)/is,
         personality_traits: /Personality Traits:\s*(.+?)(?=\n\n|\nBackground)/is,
         background: /Background:\s*(.+?)(?=\n\n|\nStr:|Stat Block)/is,
-        str: /Str:\s*(\d+)/i,
-        dex: /Dex:\s*(\d+)/i,
-        con: /Con:\s*(\d+)/i,
-        int: /Int:\s*(\d+)/i,
-        wis: /Wis:\s*(\d+)/i,
-        cha: /Cha:\s*(\d+)/i,
+        str: /\*\*?STR:\*\*?\s*(\d+)/i,
+        dex: /\*\*?DEX:\*\*?\s*(\d+)/i,
+        con: /\*\*?CON:\*\*?\s*(\d+)/i,
+        int: /\*\*?INT:\*\*?\s*(\d+)/i,
+        wis: /\*\*?WIS:\*\*?\s*(\d+)/i,
+        cha: /\*\*?CHA:\*\*?\s*(\d+)/i,
         saving_throws: /Saving Throws:\s*(.+)/i,
         skills: /Skills:\s*(.+)/i,
         senses: /Senses:\s*(.+)/i,
@@ -285,6 +495,10 @@ window.onload = function() {
 };
 
 // Campaign Lore Functions
+
+// Campaign Lore Functions
+let currentEditId = null;
+
 async function addLore() {
     const title = document.getElementById('lore-title').value.trim();
     const category = document.getElementById('lore-category').value;
@@ -296,23 +510,123 @@ async function addLore() {
     }
     
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/campaign/lore?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&category=${category}`,
-            { method: 'POST' }
-        );
+        let response;
+        if (currentEditId) {
+            // Update existing entry
+            response = await fetch(
+                `${API_BASE_URL}/campaign/lore/${currentEditId}?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&category=${category}`,
+                { method: 'PUT' }
+            );
+        } else {
+            // Add new entry
+            response = await fetch(
+                `${API_BASE_URL}/campaign/lore?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&category=${category}`,
+                { method: 'POST' }
+            );
+        }
         
         const data = await response.json();
-        alert('✅ Lore entry added successfully!');
+        alert(currentEditId ? '✅ Lore entry updated!' : '✅ Lore entry added!');
         
-        // Clear form
-        document.getElementById('lore-title').value = '';
-        document.getElementById('lore-content').value = '';
+        // Clear form and reset edit mode
+        clearLoreForm();
         
         // Reload lore list
         loadLore();
         
     } catch (error) {
         alert('❌ Error: ' + error.message);
+    }
+}
+
+function clearLoreForm() {
+    document.getElementById('lore-title').value = '';
+    document.getElementById('lore-content').value = '';
+    document.getElementById('lore-category').value = 'general';
+    currentEditId = null;
+    
+    // Update button text
+    const addBtn = document.querySelector('.lore-manager .generate-btn');
+    if (addBtn) addBtn.textContent = 'Add Lore Entry';
+}
+
+async function editLore(loreId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/campaign/lore/${loreId}`);
+        const entry = await response.json();
+        
+        // Populate form
+        document.getElementById('lore-title').value = entry.title;
+        document.getElementById('lore-content').value = entry.content;
+        document.getElementById('lore-category').value = entry.category;
+        
+        // Set edit mode
+        currentEditId = loreId;
+        
+        // Update button text
+        const addBtn = document.querySelector('.lore-manager .generate-btn');
+        if (addBtn) addBtn.textContent = 'Update Lore Entry';
+        
+        // Scroll to form
+        document.getElementById('lore-title').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('lore-title').focus();
+        
+    } catch (error) {
+        alert('❌ Error loading lore entry: ' + error.message);
+    }
+}
+
+async function deleteLore(loreId, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/campaign/lore/${loreId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        alert('✅ Lore entry deleted!');
+        
+        // Clear form if we were editing this entry
+        if (currentEditId === loreId) {
+            clearLoreForm();
+        }
+        
+        // Reload lore list
+        loadLore();
+        
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+async function searchLore() {
+    const query = document.getElementById('lore-search').value.trim();
+    const categoryFilter = document.getElementById('lore-filter-category').value;
+    
+    if (!query && !categoryFilter) {
+        loadLore();
+        return;
+    }
+    
+    const listDiv = document.getElementById('lore-list');
+    listDiv.innerHTML = '<div class="loading">Searching lore...</div>';
+    
+    try {
+        let url = `${API_BASE_URL}/campaign/lore/search?query=${encodeURIComponent(query || '')}`;
+        if (categoryFilter) {
+            url += `&category=${categoryFilter}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        displayLoreEntries(data.results, `Found ${data.count} results`);
+        
+    } catch (error) {
+        listDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
     }
 }
 
@@ -324,28 +638,46 @@ async function loadLore() {
         const response = await fetch(`${API_BASE_URL}/campaign/lore`);
         const data = await response.json();
         
-        if (data.lore && data.lore.length > 0) {
-            let html = '<h3>Campaign Lore Entries</h3>';
-            data.lore.forEach(entry => {
-                html += `
-                    <div class="lore-entry">
-                        <h4>${entry.title} <span class="lore-category">[${entry.category}]</span></h4>
-                        <p>${entry.content}</p>
-                        <small class="lore-date">Created: ${new Date(entry.created_at.seconds * 1000).toLocaleDateString()}</small>
-                    </div>
-                `;
-            });
-            listDiv.innerHTML = html;
-        } else {
-            listDiv.innerHTML = '<div class="no-results">No lore entries found. Add your first one above!</div>';
-        }
+        displayLoreEntries(data.lore, 'Campaign Lore Entries');
         
     } catch (error) {
         listDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
     }
 }
 
-// Rulebook Search Functions (if not already present)
+function displayLoreEntries(entries, headerText) {
+    const listDiv = document.getElementById('lore-list');
+    
+    if (entries && entries.length > 0) {
+        let html = `<h3>${headerText}</h3>`;
+        entries.forEach(entry => {
+            const createdDate = entry.created_at?.seconds 
+                ? new Date(entry.created_at.seconds * 1000).toLocaleDateString()
+                : 'Unknown date';
+            const updatedDate = entry.updated_at?.seconds
+                ? new Date(entry.updated_at.seconds * 1000).toLocaleDateString()
+                : null;
+            
+            html += `
+                <div class="lore-entry" data-id="${entry.id}" data-category="${entry.category}">
+                    <div class="lore-header">
+                        <h4>${entry.title} <span class="lore-category">[${entry.category}]</span></h4>
+                        <div class="lore-actions">
+                            <button onclick="editLore('${entry.id}')" class="edit-btn" title="Edit">✏️</button>
+                            <button onclick="deleteLore('${entry.id}', '${entry.title.replace(/'/g, "\\'")}')" class="delete-btn" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                    <p>${entry.content}</p>
+                    <small class="lore-date">Created: ${createdDate}${updatedDate ? ' | Updated: ' + updatedDate : ''}</small>
+                </div>
+            `;
+        });
+        listDiv.innerHTML = html;
+    } else {
+        listDiv.innerHTML = '<div class="no-results">No lore entries found. Add your first one above!</div>';
+    }
+}
+
 async function searchRulebooks() {
     const query = document.getElementById('rulebook-query').value.trim();
     const resultsDiv = document.getElementById('rulebook-results');
@@ -495,11 +827,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ============== MAP GENERATOR ==============
 
+
 async function generateMap() {
     const description = document.getElementById('map-description').value.trim();
-    const size = document.getElementById('map-size').value;
+    const columns = document.getElementById('map-columns').value;
+    const rows = document.getElementById('map-rows').value;
     const style = document.getElementById('map-style').value;
-    const grid = document.getElementById('map-grid').checked;
+    const showGrid = document.getElementById('map-grid').checked;
     const resultDiv = document.getElementById('map-result');
     
     if (!description) {
@@ -518,7 +852,7 @@ async function generateMap() {
     
     try {
         const response = await fetch(
-            `${API_BASE_URL}/generate-map?description=${encodeURIComponent(description)}&size=${size}&style=${encodeURIComponent(style)}&grid=${grid}`,
+            `${API_BASE_URL}/generate-map?description=${encodeURIComponent(description)}&rows=${rows}&columns=${columns}&style=${encodeURIComponent(style)}&show_grid=${showGrid}`,
             { method: 'POST' }
         );
         
@@ -535,7 +869,8 @@ async function generateMap() {
                         <a href="${data.image_url}" download="battle_map.png" class="download-btn">📥 Download PNG</a>
                         <button onclick="copyMapUrl('${data.image_url}')" class="copy-btn">📋 Copy URL</button>
                     </div>
-                    <p class="map-info">Size: ${data.dimensions} | <a href="${data.image_url}" target="_blank">Open in new tab</a></p>
+                    <p class="map-info">Grid: ${data.grid_size} squares | Size: ${data.dimensions} pixels | ${data.pixels_per_square}px per square</p>
+                    <p class="map-info"><a href="${data.image_url}" target="_blank">Open in new tab</a></p>
                 </div>
             `;
         } else {
